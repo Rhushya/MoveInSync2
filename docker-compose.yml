@@ -1,0 +1,53 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: mov_user
+      POSTGRES_PASSWORD: mov_pass
+      POSTGRES_DB: moviesync
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/usr/src/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://mov_user:mov_pass@db:5432/moviesync
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=super-secret-key-change-me
+      - ACCESS_TOKEN_EXPIRE_MINUTES=10080
+      - ALGORITHM=HS256
+      - ALLOWED_HOSTS=*
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000
+    volumes:
+      - ./frontend:/usr/src/app
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
