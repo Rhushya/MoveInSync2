@@ -2,6 +2,9 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { BillingConfigForm } from "../components/billing-config-form";
+import { Dashboard } from "../components/dashboard";
+import { ReportsExport } from "../components/reports-export";
 import {
   fetchCurrentUser,
   fetchTasks,
@@ -161,127 +164,174 @@ export default function Home() {
   }, [canViewSwitcher, selectedUserId, userOptions]);
 
   const visibleTasks = useMemo(() => tasks.slice(0, 100), [tasks]);
+  const isAuthenticated = Boolean(token && currentUser);
+
+  const authForm = (
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 rounded-2xl border bg-white/95 p-6 shadow-sm backdrop-blur"
+    >
+      <div className="flex gap-2 rounded-lg border bg-slate-50 p-1 text-sm font-medium">
+        <button
+          type="button"
+          onClick={() => setMode("login")}
+          className={`flex-1 rounded-md px-3 py-2 ${mode === "login" ? "bg-white shadow" : "text-muted-foreground"}`}
+        >
+          Sign in
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("signup")}
+          className={`flex-1 rounded-md px-3 py-2 ${mode === "signup" ? "bg-white shadow" : "text-muted-foreground"}`}
+        >
+          Sign up
+        </button>
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-sm font-medium">Email</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          className="w-full rounded-md border px-3 py-2"
+          required
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-sm font-medium">Password</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          className="w-full rounded-md border px-3 py-2"
+          required
+        />
+      </div>
+
+      {mode === "signup" && (
+        <>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Tenant ID</label>
+            <input
+              type="number"
+              min={1}
+              value={tenantId}
+              onChange={(event) => setTenantId(event.target.value)}
+              className="w-full rounded-md border px-3 py-2"
+              required
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Role</label>
+            <select
+              value={role}
+              onChange={(event) => setRole(event.target.value)}
+              className="w-full rounded-md border px-3 py-2"
+            >
+              <option value="employee">Employee</option>
+              <option value="vendor">Vendor</option>
+            </select>
+          </div>
+        </>
+      )}
+
+      <button
+        type="submit"
+        className="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+      >
+        {mode === "login" ? "Sign in" : "Create account"}
+      </button>
+
+      {status && <p className="text-sm text-muted-foreground">{status}</p>}
+    </form>
+  );
+
+  const viewerLabel =
+    selectedUserId === "all"
+      ? currentUser?.is_admin
+        ? "all users"
+        : currentUser?.email ?? "your trips"
+      : userOptions.find((user) => `${user.id}` === selectedUserId)?.email ?? "selected user";
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 px-4 py-16 font-sans text-zinc-900">
+        <div className="mx-auto flex max-w-3xl flex-col gap-6">
+          <header className="space-y-2 text-center">
+            <p className="text-sm uppercase tracking-wide text-indigo-600">MoveInSync</p>
+            <h1 className="text-3xl font-semibold">Sign in to your billing cockpit</h1>
+            <p className="text-sm text-muted-foreground">
+              Use your company email to authenticate. Admins can switch between users after logging in.
+            </p>
+          </header>
+
+          {authForm}
+          <p className="rounded-2xl border bg-white/70 px-4 py-3 text-center text-sm text-muted-foreground">
+            Demo access: admin@acme.com / 123 or admin1@acme.com / 123
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 px-4 py-10 font-sans text-zinc-900 dark:from-black dark:to-zinc-900">
-      <div className="mx-auto flex max-w-5xl flex-col gap-8">
-        <header className="space-y-2">
-          <p className="text-sm uppercase tracking-wide text-indigo-600">MoveInSync</p>
-          <h1 className="text-3xl font-semibold">Secure access to your trips</h1>
-          <p className="text-sm text-muted-foreground">
-            Sign in or create an account and instantly see the trips or billing tasks that belong to you.
-            Admins can switch views and inspect every user from a single dropdown.
-          </p>
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 px-4 py-10 font-sans text-zinc-900">
+      <div className="mx-auto flex max-w-6xl flex-col gap-8">
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm uppercase tracking-wide text-indigo-600">MoveInSync</p>
+            <h1 className="text-3xl font-semibold">Welcome back, {currentUser?.email}</h1>
+            <p className="text-sm text-muted-foreground">
+              {currentUser?.is_admin ? "Admin access · full tenant visibility" : "You’re viewing your personal workspace"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="rounded-md border px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Sign out
+          </button>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[1.2fr,2fr]">
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-4 rounded-2xl border bg-white/95 p-6 shadow-sm backdrop-blur"
-          >
-            <div className="flex gap-2 rounded-lg border bg-slate-50 p-1 text-sm font-medium">
-              <button
-                type="button"
-                onClick={() => setMode("login")}
-                className={`flex-1 rounded-md px-3 py-2 ${mode === "login" ? "bg-white shadow" : "text-muted-foreground"}`}
-              >
-                Sign in
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("signup")}
-                className={`flex-1 rounded-md px-3 py-2 ${mode === "signup" ? "bg-white shadow" : "text-muted-foreground"}`}
-              >
-                Sign up
-              </button>
-            </div>
+        {status && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{status}</p>}
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-md border px-3 py-2"
-                required
-              />
+        <section className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <div className="rounded-2xl border bg-white/95 p-6 shadow-sm backdrop-blur">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Recent trips</h2>
+              <span className="text-xs uppercase tracking-wide text-slate-500">{visibleTasks.length} entries</span>
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-md border px-3 py-2"
-                required
-              />
-            </div>
-
-            {mode === "signup" && (
-              <>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Tenant ID</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={tenantId}
-                    onChange={(event) => setTenantId(event.target.value)}
-                    className="w-full rounded-md border px-3 py-2"
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Role</label>
-                  <select
-                    value={role}
-                    onChange={(event) => setRole(event.target.value)}
-                    className="w-full rounded-md border px-3 py-2"
-                  >
-                    <option value="employee">Employee</option>
-                    <option value="vendor">Vendor</option>
-                  </select>
-                </div>
-              </>
+            <p className="text-sm text-muted-foreground">
+              Showing activity for {viewerLabel}.
+            </p>
+            {loadingTasks && <p className="mt-4 text-sm text-muted-foreground">Loading tasks…</p>}
+            {!loadingTasks && visibleTasks.length === 0 && (
+              <p className="mt-4 text-sm text-muted-foreground">No trips recorded for this view.</p>
             )}
-
-            <button
-              type="submit"
-              className="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-            >
-              {mode === "login" ? "Sign in" : "Create account"}
-            </button>
-
-            {status && <p className="text-sm text-muted-foreground">{status}</p>}
-            {currentUser && (
-              <p className="text-xs text-emerald-600">Currently signed in as {currentUser.email}</p>
+            {!loadingTasks && visibleTasks.length > 0 && (
+              <ul className="mt-4 space-y-3">
+                {visibleTasks.map((task) => (
+                  <li key={task.id} className="rounded-xl border bg-slate-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">{task.distance_km.toFixed(1)} km · {task.duration_minutes} min</p>
+                        <p className="text-xs text-muted-foreground">
+                          Extra km: {task.extra_km} · Extra hrs: {task.extra_hours}
+                        </p>
+                      </div>
+                      <p className="text-xs text-slate-500">{new Date(task.date).toLocaleString()}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
-          </form>
+          </div>
 
-          <section className="space-y-4 rounded-2xl border bg-white/95 p-6 shadow-sm backdrop-blur">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-indigo-600">Workspace</p>
-                <h2 className="text-xl font-semibold">
-                  {currentUser ? `Hello, ${currentUser.email}` : "Sign in to view your tasks"}
-                </h2>
-                {currentUser && (
-                  <p className="text-sm text-muted-foreground">
-                    Role: {currentUser.is_admin ? "Admin (full visibility)" : currentUser.role}
-                  </p>
-                )}
-              </div>
-              {currentUser && (
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="rounded-md border px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  Sign out
-                </button>
-              )}
-            </div>
-
-            {canViewSwitcher && (
+          <div className="space-y-4 rounded-2xl border bg-white/95 p-6 shadow-sm backdrop-blur">
+            <h2 className="text-lg font-semibold">Viewer controls</h2>
+            {canViewSwitcher ? (
               <div className="space-y-1">
                 <label className="text-sm font-medium">View tasks for</label>
                 <select
@@ -297,32 +347,33 @@ export default function Home() {
                   ))}
                 </select>
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                You’re viewing your own trips. Contact an admin if you need broader access.
+              </p>
             )}
+            <p className="text-xs text-muted-foreground">
+              Currently scoped to {viewerLabel}.
+            </p>
+          </div>
+        </section>
 
-            {loadingTasks && <p className="text-sm text-muted-foreground">Loading tasks…</p>}
-            {!loadingTasks && currentUser && visibleTasks.length === 0 && (
-              <p className="text-sm text-muted-foreground">No tasks found for this user.</p>
-            )}
-
-            {!loadingTasks && visibleTasks.length > 0 && (
-              <ul className="space-y-3">
-                {visibleTasks.map((task) => (
-                  <li key={task.id} className="rounded-xl border bg-slate-50 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold">Distance: {task.distance_km.toFixed(1)} km</p>
-                        <p className="text-xs text-muted-foreground">
-                          Duration: {task.duration_minutes} min · Extra km: {task.extra_km} · Extra hrs: {task.extra_hours}
-                        </p>
-                      </div>
-                      <p className="text-xs text-slate-500">{new Date(task.date).toLocaleString()}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+        <section className="grid gap-6 lg:grid-cols-3">
+          <section className="rounded-2xl border bg-white/95 p-6 shadow-sm backdrop-blur lg:col-span-3">
+            <h3 className="mb-4 text-lg font-semibold">Key Performance Indicators</h3>
+            <Dashboard token={token ?? undefined} />
           </section>
-        </div>
+
+          <section className="rounded-2xl border bg-white/95 p-6 shadow-sm backdrop-blur">
+            <h3 className="mb-4 text-lg font-semibold">Adjust Billing Configuration</h3>
+            <BillingConfigForm onSubmit={(config) => setStatus(`Config saved: ${JSON.stringify(config)}`)} />
+          </section>
+
+          <section className="rounded-2xl border bg-white/95 p-6 shadow-sm backdrop-blur">
+            <h3 className="mb-4 text-lg font-semibold">Export Vendor Reports</h3>
+            <ReportsExport token={token ?? undefined} />
+          </section>
+        </section>
       </div>
     </div>
   );
