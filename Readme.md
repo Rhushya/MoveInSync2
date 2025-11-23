@@ -19,7 +19,6 @@ backend/
     reporting.py
     schemas.py
     tasks/seed.py
-  Dockerfile
   requirements.txt
   .env.example
 frontend/
@@ -31,36 +30,44 @@ frontend/
     dashboard.tsx
     reports-export.tsx
   lib/api.ts
-  Dockerfile
   package.json
   .env.local.example
-docker-compose.yml
 README.md
 ```
 
 ## Chronological quick start
 
-1. **Clone & prerequisites** – Install Docker + Compose v2, Node 20+, and Python 3.11. `git clone <repo> && cd moviesync2`.
+1. **Clone & prerequisites** – Install Node 20+, pnpm/npm, and ensure you have Python 3.12 via Conda (e.g., `conda create -n moviesync2 python=3.12`). Also provision Postgres 15 and Redis 7 locally (default ports 5432/6379). `git clone <repo> && cd moviesync2`.
 2. **Copy environment files**  
    ```bash
    cp backend/.env.example backend/.env
    cp frontend/.env.local.example frontend/.env.local
    ```
-3. **Boot the stack**  
-   ```bash
-   docker compose up --build
-   ```
-   Services: FastAPI API (`http://localhost:8000` with `/docs`), Next.js dashboard (`http://localhost:3000`), Postgres (5432), Redis (6379).
-4. **Run migrations (optional)**  
-   ```bash
-   docker compose exec backend alembic upgrade head
-   ```
-5. **Seed sample data**  
-   ```bash
-   docker compose exec backend python -m app.tasks.seed
-   ```
-   Seeds tenant `AcmeCorp`, admin `admin@acme.com` / `password`, vendor, and sample trips.
-6. **Sign in & explore** – Use the seeded credentials in the frontend login card, view KPIs, tweak billing configs, and export vendor CSVs.
+3. **Start backing services** – Run Postgres and Redis locally (Docker, Homebrew, system service, etc.) using the credentials from `.env` (`mov_user/mov_pass`, db `moviesync`).
+4. **Install backend deps & run API**  
+  ```bash
+  conda activate moviesync2
+  pip install -r backend/requirements.txt
+  cd backend
+  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+  ```
+  API available at `http://localhost:8000` (Swagger at `/docs`).
+5. **Install frontend deps & run UI**  
+  ```bash
+  cd frontend
+  npm install
+  npm run dev -- --hostname 0.0.0.0 --port 3000
+  ```
+  UI available at `http://localhost:3000`.
+6. **Run migrations (optional)** – Once Alembic is configured, run `alembic upgrade head` inside the activated Conda env.
+7. **Seed sample data**  
+  ```bash
+  cd backend
+  conda activate moviesync2
+  python -m app.tasks.seed
+  ```
+  Seeds tenant `AcmeCorp`, admin `admin@acme.com` / `password`, vendor, and sample trips.
+8. **Sign in & explore** – Use the seeded credentials in the frontend login card, view KPIs, tweak billing configs, and export vendor CSVs.
 
 ## Backend overview
 
@@ -83,15 +90,6 @@ README.md
 
 Tables: `tenants`, `users`, `vendors`, `trips`, `invoice_rows`, each containing `tenant_id` for multi-tenant scoping. Vendors store `billing_model` + JSON `billing_config`; trips keep payloads for replay/debug; invoice rows capture computed amounts for auditing and downstream billing.
 
-## docker-compose services
-
-| Service  | Description                              | Ports |
-|----------|------------------------------------------|-------|
-| db       | PostgreSQL 15 + named volume `db_data`    | 5432  |
-| redis    | Redis 7 cache                             | 6379  |
-| backend  | FastAPI + Uvicorn reload (`backend/`)     | 8000  |
-| frontend | Next.js dev server (`frontend/`)          | 3000  |
-
 ## Monitoring, caching, trade-offs
 
 - Redis caches vendor reports/dashboard aggregates; invalidate keys when new trips/invoice rows post for the same vendor-period.
@@ -102,8 +100,8 @@ Tables: `tenants`, `users`, `vendors`, `trips`, `invoice_rows`, each containing 
 ## Testing hooks
 
 ```bash
-docker compose exec backend pytest -q          # backend tests
-npm run lint --prefix frontend                 # frontend lint/Tailwind validation
+conda activate moviesync2 && cd backend && pytest -q
+cd frontend && npm run lint
 ```
 
 ## Suggested next steps

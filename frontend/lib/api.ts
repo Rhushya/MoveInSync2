@@ -1,5 +1,28 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+export type User = {
+  id: number;
+  email: string;
+  role: string;
+  tenant_id: number;
+  is_admin: boolean;
+};
+
+export type Task = {
+  id: number;
+  tenant_id: number;
+  vendor_id: number;
+  employee_id: number;
+  distance_km: number;
+  duration_minutes: number;
+  date: string;
+  extra_km: number;
+  extra_hours: number;
+  payload: Record<string, unknown>;
+};
+
+type TokenResponse = { access_token: string; token_type: string };
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -66,5 +89,36 @@ export async function login(email: string, password: string) {
     throw new Error(message || "Login failed");
   }
 
-  return response.json();
+  return response.json() as Promise<TokenResponse>;
+}
+
+export async function signup(payload: { email: string; password: string; tenantId: number; role: string }) {
+  return request<TokenResponse>("/auth/signup", {
+    method: "POST",
+    body: JSON.stringify({
+      email: payload.email,
+      password: payload.password,
+      tenant_id: payload.tenantId,
+      role: payload.role,
+    }),
+  });
+}
+
+export async function fetchCurrentUser(token: string) {
+  return request<User>("/me", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function fetchUsers(token: string) {
+  return request<User[]>("/users", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function fetchTasks(token: string, userId?: number) {
+  const params = userId ? `?user_id=${userId}` : "";
+  return request<Task[]>(`/tasks${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 }

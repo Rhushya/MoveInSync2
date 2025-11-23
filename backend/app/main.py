@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,6 +52,35 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/me", response_model=schemas.UserOut)
+async def read_current_user(current_user=Depends(get_current_user)):
+    return current_user
+
+
+@app.get("/users", response_model=list[schemas.UserOut])
+async def list_users(
+    current_admin: schemas.UserOut = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    return await crud.list_users_by_tenant(db, tenant_id=current_admin.tenant_id)
+
+
+@app.get("/tasks", response_model=list[schemas.TripOut])
+async def list_tasks(
+    user_id: int | None = Query(None, description="Optional user filter"),
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    employee_filter = user_id if current_user.is_admin else current_user.id
+
+    trips = await crud.list_trips_for_tenant(
+        db,
+        tenant_id=current_user.tenant_id,
+        employee_id=employee_filter,
+    )
+    return trips
 
 
 @app.post("/trips", response_model=schemas.TripOut)

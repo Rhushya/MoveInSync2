@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +43,11 @@ async def get_user_by_email(db: AsyncSession, email: str) -> Optional[models.Use
     return result.scalars().first()
 
 
+async def list_users_by_tenant(db: AsyncSession, tenant_id: int) -> List[models.User]:
+    result = await db.execute(select(models.User).where(models.User.tenant_id == tenant_id).order_by(models.User.email))
+    return result.scalars().all()
+
+
 async def create_vendor(db: AsyncSession, payload: Dict[str, Any]) -> models.Vendor:
     vendor = models.Vendor(**payload)
     db.add(vendor)
@@ -62,3 +67,16 @@ async def create_trip(db: AsyncSession, payload: Dict[str, Any]) -> models.Trip:
     await db.commit()
     await db.refresh(trip)
     return trip
+
+
+async def list_trips_for_tenant(
+    db: AsyncSession,
+    *,
+    tenant_id: int,
+    employee_id: Optional[int] = None,
+) -> List[models.Trip]:
+    stmt = select(models.Trip).where(models.Trip.tenant_id == tenant_id).order_by(models.Trip.date.desc())
+    if employee_id is not None:
+        stmt = stmt.where(models.Trip.employee_id == employee_id)
+    result = await db.execute(stmt)
+    return result.scalars().all()

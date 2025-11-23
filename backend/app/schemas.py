@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class TenantBase(BaseModel):
@@ -17,14 +17,13 @@ class TenantCreate(TenantBase):
 class TenantOut(TenantBase):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserBase(BaseModel):
     email: EmailStr
     tenant_id: int
-    role: str = Field("employee", regex=r"^(admin|vendor|employee)$")
+    role: str = Field("employee", pattern=r"^(admin|vendor|employee)$")
 
 
 class UserCreate(UserBase):
@@ -36,9 +35,9 @@ class UserOut(BaseModel):
     email: EmailStr
     role: str
     tenant_id: int
+    is_admin: bool = False
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Token(BaseModel):
@@ -61,8 +60,7 @@ class TripIn(BaseModel):
 class TripOut(TripIn):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class InvoiceRowOut(BaseModel):
@@ -72,5 +70,4 @@ class InvoiceRowOut(BaseModel):
     amount: float
     note: str
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
