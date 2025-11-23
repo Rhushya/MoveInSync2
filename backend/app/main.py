@@ -5,12 +5,14 @@ from datetime import timedelta
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import auth, billing, crud, reporting, schemas
 from .config import settings
-from .db import Base, engine, get_db
+from .db import AsyncSessionLocal, Base, engine, get_db
 from .deps import get_current_user, require_role
+from .models import Tenant, User
 
 app = FastAPI(title="MoveInSync Billing API")
 
@@ -27,6 +29,44 @@ app.add_middleware(
 async def startup_event():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await ensure_default_admins()
+
+
+async def ensure_default_admins():
+    default_accounts = [
+        "admin@acme.com",
+        "admin1@acme.com",
+        "admin2@acme.com",
+        "admin3@acme.com",
+    ]
+
+    async with AsyncSessionLocal() as session:
+        tenant = (
+            await session.execute(select(Tenant).where(Tenant.name == "AcmeCorp"))
+        ).scalars().first()
+        if tenant is None:
+            tenant = Tenant(name="AcmeCorp")
+            session.add(tenant)
+            await session.commit()
+            await session.refresh(tenant)
+
+        for email in default_accounts:
+            exists = (
+                await session.execute(select(User).where(User.email == email))
+            ).scalars().first()
+            if exists:
+                continue
+            session.add(
+                User(
+                    email=email,
+                    hashed_password=auth.get_password_hash("123"),
+                    tenant_id=tenant.id,
+                    is_admin=True,
+                    role="admin",
+                )
+            )
+
+        await session.commit()
 
 
 @app.post("/auth/signup", response_model=schemas.Token)
