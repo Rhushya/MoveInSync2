@@ -111,3 +111,12 @@ cd frontend && npm run lint
 3. Add Prometheus/OpenTelemetry exporters + dashboards.
 4. Implement role-based front-end routing (admin/vendor/employee) and secure cookie storage for JWTs.
 5. Harden auth with refresh tokens, password resets, and production-ready secret management.
+
+
+## DEMO
+
+
+https://github.com/user-attachments/assets/a1ed8675-f022-405a-b149-72d1a2d909cd
+
+
+
